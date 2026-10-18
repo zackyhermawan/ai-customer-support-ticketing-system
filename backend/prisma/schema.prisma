@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_FOR_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketCategory {
+  PAYMENT
+  ACCOUNT
+  TECHNICAL
+  SHIPPING
+  PRODUCT
+  OTHER
+}
+
+enum Sentiment {
+  ANGRY
+  FRUSTRATED
+  NEUTRAL
+  SATISFIED
+}
+
+enum AIAnalysisStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AIReplyDraftStatus {
+  DRAFT
+  SENT
+  DISCARDED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(CUSTOMER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdTickets  Ticket[]        @relation("TicketCustomer")
+  assignedTickets Ticket[]        @relation("TicketAssignee")
+  ticketMessageReads TicketMessageRead[]
+  messages        TicketMessage[]
+  generatedDrafts AIReplyDraft[]
+  auditLogs       AuditLog[]
+}
+
+model Ticket {
+  id           String         @id @default(cuid())
+  ticketNumber String         @unique
+  subject      String
+  description  String
+  status       TicketStatus   @default(OPEN)
+  priority     TicketPriority @default(MEDIUM)
+  category     TicketCategory @default(OTHER)
+
+  customerId   String
+  assignedToId String?
+
+  resolvedAt DateTime?
+  closedAt   DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  customer   User  @relation("TicketCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  assignedTo User? @relation("TicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  messages    TicketMessage[]
+  aiAnalyses  TicketAIAnalysis[]
+  replyDrafts AIReplyDraft[]
+  auditLogs   AuditLog[]
+
+  @@index([customerId, createdAt])
+  @@index([status, priority, createdAt])
+  @@index([assignedToId, status])
+  @@index([category, createdAt])
+}
+
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String
+  senderId   String
+  body       String
+  isInternal Boolean  @default(false)
+  readAt     DateTime?
+  createdAt  DateTime @default(now())
+
+  reads TicketMessageRead[]
+
+  ticket    Ticket        @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender    User          @relation(fields: [senderId], references: [id], onDelete: Restrict)
+  sentDraft AIReplyDraft? @relation("DraftSentMessage")
+
+  @@index([ticketId, createdAt])
+  @@index([ticketId, readAt, isInternal])
+  @@index([senderId, createdAt])
+}
+
+model TicketMessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message TicketMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId, readAt])
+}
+
+model TicketAIAnalysis {
+  id       String           @id @default(cuid())
+  ticketId String
+  status   AIAnalysisStatus @default(PENDING)
+
+  sentiment         Sentiment?
+  suggestedPriority TicketPriority?
+  suggestedCategory TicketCategory?
+  summary           String?
+  reason            String?
+  confidence        Float?
+
+  provider      String?
+  model         String?
+  promptVersion String?
+  errorMessage  String?
+
+  createdAt   DateTime  @default(now())
+  completedAt DateTime?
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
+  @@index([status, createdAt])
+  @@index([sentiment, createdAt])
+}
+
+model AIReplyDraft {
+  id            String             @id @default(cuid())
+  ticketId      String
+  generatedById String
+  content       String
+  status        AIReplyDraftStatus @default(DRAFT)
+  sentMessageId String?            @unique
+
+  provider  String?
+  model     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  sentAt    DateTime?
+
+  ticket      Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  generatedBy User           @relation(fields: [generatedById], references: [id], onDelete: Restrict)
+  sentMessage TicketMessage? @relation("DraftSentMessage", fields: [sentMessageId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([generatedById, createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  ticketId  String?
+  action    String
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  actor  User?   @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  ticket Ticket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}

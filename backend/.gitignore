@@ -1,0 +1,17 @@
+
+node_modules/
+
+# Environment secrets
+.env
+.env.*
+!.env.example
+
+# Generated Prisma client
+/src/generated/prisma/
+
+# Build output
+dist/
+coverage/
+
+# Logs
+*.log

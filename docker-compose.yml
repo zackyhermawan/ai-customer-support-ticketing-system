@@ -1,0 +1,117 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ai-support-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: ai-support-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  migrate:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: builder
+    container_name: ai-support-migrate
+    restart: "no"
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+    command:
+      [
+        "npx",
+        "prisma",
+        "migrate",
+        "deploy",
+        "--config",
+        "prisma7.config.ts"
+      ]
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: ai-support-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}"
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3000/api}
+        VITE_SOCKET_URL: ${VITE_SOCKET_URL:-http://localhost:3000}
+    container_name: ai-support-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
