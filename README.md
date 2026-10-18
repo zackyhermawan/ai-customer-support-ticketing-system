@@ -49,9 +49,39 @@ Pastikan perangkat telah memiliki perangkat lunak berikut:
 - API Key dari Groq
 
 ## Instalasi dan Menjalankan Aplikasi
-**1. Clone Repository**
+### 1. Clone Repository
 Jalankan perintah berikut di terminal:
 ```bash
 git clone https://github.com/zackyhermawan/ai-customer-support-ticketing-system.git
 cd ai-customer-support-ticketing-system
 ```
+
+### 2. Konfigurasi Environment
+Buat file .env berdasarkan .env.example yang tersedia.
+
+Sesuaikan konfigurasi yang diperlukan, termasuk:
+- Kredensial PostgreSQL.
+- URL koneksi Redis.
+- JWT secret.
+- Groq API key.
+- URL API dan Socket.IO untuk frontend.
+
+### 3. Jalankan Aplikasi dengan Docker
+Dari direktori root proyek, jalankan:
+```bash
+docker compose up -d --build
+```
+
+### 4. Periksa Status Container
+```bash
+docker compose ps
+```
+
+### 5. Akses Aplikasi
+Dengan konfigurasi port saat ini:
+| Layanan | Alamat | 
+| :--- | :---: | 
+| Frontend | http://localhost:8080 | 
+| Backend | http://localhost:3000 | 
+| Helath Check | http://localhost:3000/api/health | 
+
