@@ -19,10 +19,15 @@ Proyek ini dikembangkan sebagai proyek portofolio Full-Stack Developer dengan te
 ### Frontend
 - Vue 3
 - TypeScript
-- Tailwind CSS
 - Vite
+- Tailwind CSS
+- Pinia
+- Vue Router
 - Axios
 - Socket.IO Client
+- Chart.js & Vue Chart.js
+- Lucide Vue Next
+- Poppins
 
 ### Backend
 - Node.js
@@ -35,6 +40,7 @@ Proyek ini dikembangkan sebagai proyek portofolio Full-Stack Developer dengan te
 - Socket.IO
 - Groq API
 - Json Web Token (JWT)
+- bcryptjs
 - Zod
 
 ## Infrastruktur
