@@ -27,7 +27,6 @@ Proyek ini dikembangkan sebagai proyek portofolio Full-Stack Developer dengan te
 - Socket.IO Client
 - Chart.js & Vue Chart.js
 - Lucide Vue Next
-- Poppins
 
 ### Backend
 - Node.js
